@@ -188,7 +188,6 @@ def update_k(points, means, K=4):
 
 
 def find_color_type_fixed(img, mask=None, n_clusters=4, epochs=1):
-    
     img_flatten = img_none_flatten(img.copy(), mask.copy())
     points = [Point(d, K=n_clusters) for d in img_flatten]
     point_dict = make_k_mapping(points)
@@ -237,25 +236,121 @@ def sort_color_feature_mean_dist(colors):
     return colors[np.argsort(dist)[::-1]].tolist()
 
 
+# Kmeans re implementation
+
+class Centroid:
+    def __init__(self, color):
+        self.data = color
+        self.neighbors = np.empty([0,3])
+    
+    def update_color(self):
+        if len(self.neighbors) == 0:
+            raise ValueError
+        self.data = np.mean(self.neighbors, axis=0)
+
+    def get_dist(self, t_color):
+        dist = np.linalg.norm(self.data - t_color)
+        return dist
+    
+    def add_neighbor(self, color):
+        self.neighbors = np.append(self.neighbors, color.reshape([1,-1]), axis=0)
+    
+    def clean_neighbor(self):
+        self.neighbors = np.empty([0,3])
+    
+    def get_data(self):
+        return self.data.astype(np.int16).tolist(), len(self.neighbors)
+    
+def random_selected_pixel_with_mask(img, mask=None, select_n=4):
+    if mask.all() == None:
+        mask = np.ones_like(img[:,:,0])
+    if len(mask.shape) == 3:
+        mask = mask[:,:,0]
+    if len(np.unique(mask)) != 2:
+        mask = np.where(mask<127, 0, 1)
+
+    img_flat = img.reshape([-1,3])
+    mask_flat = mask.flatten()
+
+    selected_colors = np.array([])
+
+    count = 0
+    while(len(np.unique(selected_colors, axis=0)) != select_n):
+        selected_pixels = np.random.choice(np.where(mask_flat == 1)[0], select_n, replace=False)    
+        selected_colors = img_flat[selected_pixels]
+        
+        count += 1
+
+        if count >= 30:
+            return np.array([[0,0,0],[255,0,0],[0,255,0],[0,0,255]])
+
+    return selected_colors
+
+def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
+    
+    selected_colors = random_selected_pixel_with_mask(img, mask, n_cluster)
+    k_map = {idx:Centroid(color) for idx, color in enumerate(selected_colors)}
+    img = img.reshape([-1,3])
+
+    result = []
+    for epoch in range(epochs):
+        for color in img:
+            closest_k = np.argmin([k_map[k].get_dist(color) for k in range(n_cluster)])
+            k_map[closest_k].add_neighbor(color)
+
+        for k in range(n_cluster):
+            k_map[k].update_color()
+
+            if epoch == epochs-1:
+                color, num_pix = k_map[k].get_data()
+                result.append((color, num_pix/len(img)))
+            else:
+                k_map[k].clean_neighbor()
+
+    result = sorted(result, key=lambda x:x[1], reverse=True)
+
+    color_result = []
+    percentage = []
+    for cur in result:
+        color_result.append(cur[0])
+        percentage.append(cur[1])
+
+    return [color_result, percentage]
+
+
+from PIL import Image
+from rmbg_postprocess import MaskPostProcessor
 if __name__ == "__main__":
+    img = Image.open("/media/mlfavorfit/sda/template_recommend_dataset/train/airconditioning/75_black.jpg").resize([128,128])
+    mask = Image.open("/media/mlfavorfit/sda/template_recommend_dataset/train/airconditioning/75_black_mask.jpg").resize([128,128])
+    postprocessor = MaskPostProcessor()
+    img_np = np.array(img)
+    mask_np = np.array(mask)
+    mask_np = 255 - postprocessor.apply_dilate(postprocessor.apply_3_sigmoid_region_process(mask_np),3)
 
-    bgr_2dim = np.array([[28,42,42], [0,0,255], [10,20,200]]).astype(np.float32)
-    hsv_2dim = bgr_to_hsv(bgr_2dim)
-    rgb_2dim = hsv_to_rgb(hsv_2dim)
-    bgr_2dim_2 = hsv_to_bgr(hsv_2dim)
+    Image.fromarray(mask_np).show()
+    color, percentage = color_extraction(img_np, mask_np, n_cluster=4, epochs=8)
+    print(type(color[0][0]), type(percentage[0]))
+    print(color, percentage)
+    visualize_rgb_colors(color)
 
-    print("BGR Colors")
-    print(bgr_2dim)
-    visualize_bgr_colors(bgr_2dim)
+    # bgr_2dim = np.array([[28,42,42], [0,0,255], [10,20,200]]).astype(np.float32)
+    # hsv_2dim = bgr_to_hsv(bgr_2dim)
+    # rgb_2dim = hsv_to_rgb(hsv_2dim)
+    # bgr_2dim_2 = hsv_to_bgr(hsv_2dim)
 
-    print("HSV Colors")
-    print(hsv_2dim)
-    visualize_hsv_colors(hsv_2dim)
+    # print("BGR Colors")
+    # print(bgr_2dim)
+    # visualize_bgr_colors(bgr_2dim)
 
-    print("RGB Colors")
-    print(rgb_2dim)
-    visualize_rgb_colors(rgb_2dim)
+    # print("HSV Colors")
+    # print(hsv_2dim)
+    # visualize_hsv_colors(hsv_2dim)
 
-    print("BGR Colors2")
-    print(bgr_2dim_2)
-    visualize_bgr_colors(bgr_2dim)
+    # print("RGB Colors")
+    # print(rgb_2dim)
+    # visualize_rgb_colors(rgb_2dim)
+
+    # print("BGR Colors2")
+    # print(bgr_2dim_2)
+    # visualize_bgr_colors(bgr_2dim)

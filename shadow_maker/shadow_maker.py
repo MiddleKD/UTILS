@@ -124,6 +124,19 @@ class ShadowMaker:
 
         return cropped_mask
     
+    def get_crop_image(self, image):
+
+        y, x = np.where(image[:,:,0] != 0)
+
+        # 바운딩 박스 계산
+        x_min, x_max = np.min(x), np.max(x)
+        y_min, y_max = np.min(y), np.max(y)
+        
+        # 이미지 크롭
+        cropped_image = image[y_min:y_max+1, x_min:x_max+1,:]
+
+        return cropped_image.astype(np.uint8)
+    
 
     def linear_transform_floor(self, shadow_arr, degree, magnitude):
     
