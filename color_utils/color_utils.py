@@ -340,6 +340,31 @@ def rgb_imagenet_normalization(rgb_arr, scaling = False):
 
     return (rgb_arr - mean)/std
 
+def rgb_imagenet_normalization_restore(rgb_arr, scaling = False):
+    rgb_arr = np.array(rgb_arr).astype(np.float64)
+
+    arr_shape_length = len(rgb_arr.shape)    
+
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+
+    if arr_shape_length == 4:
+        mean = mean.reshape(1,1,1,-1)
+        std = std.reshape(1,1,1,-1)
+    elif arr_shape_length == 3:
+        mean = mean.reshape(1,1,-1)
+        std = std.reshape(1,1,-1)
+    elif arr_shape_length == 2:
+        mean = mean.reshape(1,-1)
+        std = std.reshape(1,-1)    
+
+    restored_arr = rgb_arr * std + mean
+
+    if scaling == True:
+        restored_arr *= 255.0
+
+    return restored_arr
+
 
 from PIL import Image
 from rmbg_postprocess import MaskPostProcessor
