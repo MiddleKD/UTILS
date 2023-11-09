@@ -317,6 +317,29 @@ def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
 
     return [color_result, percentage]
 
+def rgb_imagenet_normalization(rgb_arr, scaling = False):
+    rgb_arr = np.array(rgb_arr).astype(np.float64)
+    
+    if scaling == True:
+        rgb_arr /= 255.0
+        
+    arr_shape_length = len(rgb_arr.shape)    
+
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+
+    if arr_shape_length == 4:
+        mean = mean.reshape(1,1,1,-1)
+        std = std.reshape(1,1,1,-1)
+    elif arr_shape_length == 3:
+        mean = mean.reshape(1,1,-1)
+        std = std.reshape(1,1,-1)
+    elif arr_shape_length == 2:
+        mean = mean.reshape(1,-1)
+        std = std.reshape(1,-1)    
+
+    return (rgb_arr - mean)/std
+
 
 from PIL import Image
 from rmbg_postprocess import MaskPostProcessor
