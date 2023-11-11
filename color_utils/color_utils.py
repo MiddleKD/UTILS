@@ -34,9 +34,15 @@ def bgr_to_hsv(bgr_2dim):
     hsv_2dim = np.stack([h, s, v], axis=1)
     return hsv_2dim
 
-def hsv_to_rgb(hsv_2dim):
+def hsv_to_rgb(hsv_2dim, norm_type="cv2"):
     hsv_2dim = np.array(hsv_2dim).astype(np.float32)
-    normalized_hsv_2dim = hsv_2dim / np.array([360.0,100.0,100.0])
+
+    if norm_type == "cv2":
+        scale = np.array([179.0,255.0,255.0])
+    else:
+        scale = np.array([360.0,100.0,100.0])
+
+    normalized_hsv_2dim = hsv_2dim / scale
     return mcolors.hsv_to_rgb(normalized_hsv_2dim) * 255.0
     
 def hsv_to_bgr(hsv_2dim):
@@ -46,6 +52,8 @@ def hsv_to_bgr(hsv_2dim):
 
 
 def visualize_rgb_colors(rgb_colors):
+    rgb_colors = np.array(rgb_colors)
+
     # Create a figure and axis for the plot
     fig, ax = plt.subplots()
 
@@ -100,11 +108,11 @@ def visualize_bgr_colors(bgr_colors):
     plt.show()
 
 
-def visualize_hsv_colors(hsv_colors):
+def visualize_hsv_colors(hsv_colors, norm_type=None):
     # Create a figure and axis for the plot
     fig, ax = plt.subplots()
 
-    rgb_colors = hsv_to_rgb(hsv_colors)
+    rgb_colors = hsv_to_rgb(hsv_colors, norm_type=norm_type)
     # Loop through the list of HSV colors and plot each one
     for i, rgb_color in enumerate(rgb_colors):
         # Create a rectangle filled with the RGB color
@@ -287,7 +295,9 @@ def random_selected_pixel_with_mask(img, mask=None, select_n=4):
     return selected_colors
 
 def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
-    
+    if mask == None:
+        mask = np.ones_like(img) * 255
+        
     selected_colors = random_selected_pixel_with_mask(img, mask, n_cluster)
     k_map = {idx:Centroid(color) for idx, color in enumerate(selected_colors)}
     img = img.reshape([-1,3])
@@ -317,72 +327,98 @@ def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
 
     return [color_result, percentage]
 
-def rgb_imagenet_normalization(rgb_arr, scaling = False):
-    rgb_arr = np.array(rgb_arr).astype(np.float64)
-    
-    if scaling == True:
-        rgb_arr /= 255.0
+
+def color_normalization(color_arr, scaling = True, type="rgb"):
+
+    color_arr = np.array(color_arr).astype(np.float32)
+
+    if type == "rgb":
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        scale = np.array([255.0, 255.0, 255.0])
+    elif type == "hsv":
+        mean = np.array([0.314 , 0.3064, 0.553])
+        std = np.array([0.2173, 0.2056, 0.2211])
+        scale = np.array([179.0, 255.0, 255.0])
         
-    arr_shape_length = len(rgb_arr.shape)    
+    arr_shape_length = len(color_arr.shape)    
+    new_shape = [1]*arr_shape_length
+    new_shape[arr_shape_length-1] = -1
 
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-
-    if arr_shape_length == 4:
-        mean = mean.reshape(1,1,1,-1)
-        std = std.reshape(1,1,1,-1)
-    elif arr_shape_length == 3:
-        mean = mean.reshape(1,1,-1)
-        std = std.reshape(1,1,-1)
-    elif arr_shape_length == 2:
-        mean = mean.reshape(1,-1)
-        std = std.reshape(1,-1)    
-
-    return (rgb_arr - mean)/std
-
-def rgb_imagenet_normalization_restore(rgb_arr, scaling = False):
-    rgb_arr = np.array(rgb_arr).astype(np.float64)
-
-    arr_shape_length = len(rgb_arr.shape)    
-
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-
-    if arr_shape_length == 4:
-        mean = mean.reshape(1,1,1,-1)
-        std = std.reshape(1,1,1,-1)
-    elif arr_shape_length == 3:
-        mean = mean.reshape(1,1,-1)
-        std = std.reshape(1,1,-1)
-    elif arr_shape_length == 2:
-        mean = mean.reshape(1,-1)
-        std = std.reshape(1,-1)    
-
-    restored_arr = rgb_arr * std + mean
+    mean = mean.reshape(new_shape)
+    std = std.reshape(new_shape)
+    scale = scale.reshape(new_shape)
 
     if scaling == True:
-        restored_arr *= 255.0
+        color_arr /= scale
+
+    return (color_arr - mean)/std
+
+
+def color_normalization_restore(color_arr, scaling = True, type="rgb"):
+    color_arr = np.array(color_arr).astype(np.float32)
+
+    if type == "rgb":
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        scale = np.array([255.0, 255.0, 255.0])
+    elif type == "hsv":
+        mean = np.array([0.314 , 0.3064, 0.553])
+        std = np.array([0.2173, 0.2056, 0.2211])
+        scale = np.array([179.0, 255.0, 255.0])
+        
+    arr_shape_length = len(color_arr.shape)
+    new_shape = [1]*arr_shape_length
+    new_shape[arr_shape_length-1] = -1
+ 
+    mean = mean.reshape(new_shape)
+    std = std.reshape(new_shape)
+    scale = scale.reshape(new_shape)
+
+    restored_arr = color_arr * std + mean
+
+    if scaling == True:
+        restored_arr *= scale
 
     return restored_arr
 
+import cv2
+def rgb2hsv_cv2(rgb_colors):
+    rgb_colors = np.array(rgb_colors, dtype=np.uint8)
+
+    input_shape_len = len(rgb_colors.shape)
+    if input_shape_len < 3:
+        rgb_colors = rgb_colors.reshape(1,-1,3)
+    
+    hsv_colors = cv2.cvtColor(rgb_colors, cv2.COLOR_RGB2HSV).astype(np.uint8)
+
+    return hsv_colors.squeeze()
+
+def hsv2rgb_cv2(hsv_colors):
+    hsv_colors = np.array(hsv_colors, dtype=np.uint8)
+
+    input_shape_len = len(hsv_colors.shape)
+    if input_shape_len < 3:
+        hsv_colors = hsv_colors.reshape(1,-1,3)
+    
+    rgb_colors = cv2.cvtColor(hsv_colors, cv2.COLOR_HSV2RGB).astype(np.uint8)
+
+    return rgb_colors.squeeze()
+
 
 from PIL import Image
-from rmbg_postprocess import MaskPostProcessor
 if __name__ == "__main__":
-    img = Image.open("/media/mlfavorfit/sda/template_recommend_dataset/train/airconditioning/75_black.jpg").resize([128,128])
-    mask = Image.open("/media/mlfavorfit/sda/template_recommend_dataset/train/airconditioning/75_black_mask.jpg").resize([128,128])
-    postprocessor = MaskPostProcessor()
-    img_np = np.array(img)
-    mask_np = np.array(mask)
-    mask_np = 255 - postprocessor.apply_dilate(postprocessor.apply_3_sigmoid_region_process(mask_np),3)
 
-    Image.fromarray(mask_np).show()
-    color, percentage = color_extraction(img_np, mask_np, n_cluster=4, epochs=8)
-    print(type(color[0][0]), type(percentage[0]))
-    print(color, percentage)
-    visualize_rgb_colors(color)
+    bgr_2dim = np.array([[28,42,42], [0,0,255], [10,20,200]])
+    visualize_rgb_colors(bgr_2dim)
+    
+    hsv_color = rgb2hsv_cv2(bgr_2dim)
+    print(hsv_color)
+    norm_color = color_normalization_restore(color_normalization(hsv_color, type="hsv"), type="hsv")
+    print(norm_color.astype(np.uint8))
 
-    # bgr_2dim = np.array([[28,42,42], [0,0,255], [10,20,200]]).astype(np.float32)
+    visualize_hsv_colors(hsv_color, norm_type="cv2")
+
     # hsv_2dim = bgr_to_hsv(bgr_2dim)
     # rgb_2dim = hsv_to_rgb(hsv_2dim)
     # bgr_2dim_2 = hsv_to_bgr(hsv_2dim)
