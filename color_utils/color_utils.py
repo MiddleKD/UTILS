@@ -253,7 +253,7 @@ class Centroid:
     
     def update_color(self):
         if len(self.neighbors) == 0:
-            raise ValueError
+            self.data = np.array([-255,-255,-255])
         self.data = np.mean(self.neighbors, axis=0)
 
     def get_dist(self, t_color):
@@ -295,7 +295,7 @@ def random_selected_pixel_with_mask(img, mask=None, select_n=4):
     return selected_colors
 
 def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
-    if mask == None:
+    if mask is None:
         mask = np.ones_like(img) * 255
         
     selected_colors = random_selected_pixel_with_mask(img, mask, n_cluster)
@@ -328,7 +328,7 @@ def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
     return [color_result, percentage]
 
 
-def color_normalization(color_arr, scaling = True, type="rgb"):
+def color_normalization(color_arr, scaling = True, type="rgb", only_scale=False):
 
     color_arr = np.array(color_arr).astype(np.float32)
 
@@ -352,6 +352,9 @@ def color_normalization(color_arr, scaling = True, type="rgb"):
     if scaling == True:
         color_arr /= scale
 
+    if only_scale == True:
+        return color_arr
+    
     return (color_arr - mean)/std
 
 
@@ -405,6 +408,13 @@ def hsv2rgb_cv2(hsv_colors):
 
     return rgb_colors.squeeze()
 
+
+def rgb_to_hex(rgb):
+    return '#%02x%02x%02x' % (int(rgb[0]), int(rgb[1]), int(rgb[2]))
+
+def colors_to_hex(colors):
+    colors = list(colors)
+    return [rgb_to_hex(color) for color in colors]
 
 from PIL import Image
 if __name__ == "__main__":

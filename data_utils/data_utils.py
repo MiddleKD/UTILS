@@ -5,20 +5,32 @@ import matplotlib.pyplot as plt
 from glob import glob
 import os
 
-def load_background_data():
-    id_arr, colors_arr = [], []
-    with open('template_colors_bgr.json', 'r') as rf:
-        for data in json.load(rf):
-            id_arr.append(data['id'])
-            colors_arr.append(np.array(data['colors']).flatten())
-    return id_arr, colors_arr
+
+def load_templates_features():
+    id_arr, colors_arr, weights_arr = [], [], []
+    
+    total_json = []
+
+    fns = glob("./features/*.json")
+    for fn in fns:
+        with open(fn, 'r') as rf:
+            total_json.extend(json.load(rf))
+    
+    for data in total_json:
+        id_arr.append(data['id'])
+        colors_arr.append(np.array(data['colors']).flatten())
+        weights_arr.append(np.array(data['weights']).flatten())
+    
+    return np.array(id_arr), np.array(colors_arr), np.array(weights_arr)
 
 
-def extract_similarity(data_arr):
-    data_arr = np.array(data_arr)
-    data_arr = data_arr / np.linalg.norm(data_arr, axis=1)[:, None]
-    matrix = np.einsum('ik,jk->ij', data_arr, data_arr)
-    return matrix
+def calculate_cos_similarity(target, data_arr):
+    target = np.array(target) / np.linalg.norm(target)
+    data_arr = np.array(data_arr) / np.linalg.norm(data_arr, axis=1)[:,None]
+    cos_sim = np.matmul(target, data_arr.T)[0]
+
+    cos_sim[np.isnan(cos_sim)] = 0
+    return cos_sim
 
 
 def get_close_index(similarity, id_arr, max_num=None):
@@ -57,3 +69,43 @@ def visualize_templates(template_ids, template_dict):
 
     plt.show()
 
+def concat_array(arr1, arr2, axis=0):
+    return np.concatenate([arr1, arr2], axis=axis)
+
+if __name__ == "__main__":
+    colors = np.array([
+            [
+                204,
+                189,
+                203
+            ],
+            [
+                170,
+                149,
+                176
+            ],
+            [
+                142,
+                123,
+                148
+            ],
+            [
+                86,
+                64,
+                95
+            ]
+        ])
+    weights = np.array([
+            0.37982177734375,
+            0.3221435546875,
+            0.20721435546875,
+            0.0908203125
+        ])
+    
+    id_arr, colors_arr, weights_arr = load_templates_features()
+    
+    similarity = calculate_cos_similarity([concat_array(colors.flatten(), weights*30, axis=0)], concat_array(colors_arr, weights_arr*30, axis=1))
+    print(get_close_index(similarity, id_arr, max_num=30))
+
+    similarity = calculate_cos_similarity([colors.flatten()], colors_arr)
+    print(get_close_index(similarity, id_arr, max_num=30))
