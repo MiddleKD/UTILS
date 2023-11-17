@@ -24,6 +24,24 @@ def load_templates_features():
     return np.array(id_arr), np.array(colors_arr), np.array(weights_arr)
 
 
+def load_templates_dict():
+    fns = glob("/media/mlfavorfit/sdb/Favorfit_templates_confirmed/**/*.jpg")
+    fns_dict = {fn[-26:]:fn for fn in fns}
+
+    with open("./analize/background_colors_json/meta_datas/all_templates_meta_data.json", 'r') as rf:
+        datas_dict = json.load(rf)
+
+    sorted_list = sorted(list(datas_dict.items()), key= lambda x:int(x[0].replace("_","").replace(".jpg","")))
+
+    templates_dict = {}
+    for idx, (key, value) in enumerate(sorted_list):
+        templates_dict[idx+1] = fns_dict[key]
+        # result["colors"] = value["features"][0]  # rgb
+        # result["weights"] = value["features"][1]
+
+    return templates_dict
+
+
 def calculate_cos_similarity(target, data_arr):
     target = np.array(target) / np.linalg.norm(target)
     data_arr = np.array(data_arr) / np.linalg.norm(data_arr, axis=1)[:,None]
@@ -68,6 +86,7 @@ def visualize_templates(template_ids, template_dict):
         plt.imshow(template_image)
 
     plt.show()
+
 
 def concat_array(arr1, arr2, axis=0):
     return np.concatenate([arr1, arr2], axis=axis)
