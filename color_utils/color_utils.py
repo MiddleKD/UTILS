@@ -294,13 +294,26 @@ def random_selected_pixel_with_mask(img, mask=None, select_n=4):
 
     return selected_colors
 
+def color_filter_with_mask(img, mask):
+    if mask.all() == None:
+        mask = np.ones_like(img[:,:,0])
+    if len(mask.shape) == 3:
+        mask = mask[:,:,0]
+    if len(np.unique(mask)) != 2:
+        mask = np.where(mask<127, 0, 1)
+
+    img_flat = img.reshape([-1,3])
+    mask_flat = mask.flatten()
+
+    return img_flat[np.where(mask_flat == 1)[0]]
+
 def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
     if mask is None:
         mask = np.ones_like(img) * 255
-        
+
     selected_colors = random_selected_pixel_with_mask(img, mask, n_cluster)
     k_map = {idx:Centroid(color) for idx, color in enumerate(selected_colors)}
-    img = img.reshape([-1,3])
+    img = color_filter_with_mask(img, mask)
 
     result = []
     for epoch in range(epochs):
