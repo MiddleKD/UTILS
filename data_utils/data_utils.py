@@ -91,6 +91,7 @@ def visualize_templates(template_ids, template_dict):
 def concat_array(arr1, arr2, axis=0):
     return np.concatenate([arr1, arr2], axis=axis)
 
+
 if __name__ == "__main__":
     colors = np.array([
             [
