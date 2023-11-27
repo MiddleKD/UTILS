@@ -311,9 +311,13 @@ def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
     if mask is None:
         mask = np.ones_like(img) * 255
 
-    selected_colors = random_selected_pixel_with_mask(img, mask, n_cluster)
-    k_map = {idx:Centroid(color) for idx, color in enumerate(selected_colors)}
     img = color_filter_with_mask(img, mask)
+    # selected_colors = random_selected_pixel_with_mask(img, mask, n_cluster)
+    if len(img) == 0:
+        print(np.unique(mask))
+    selected_colors = img[np.random.choice(range(len(img)), n_cluster)]
+    k_map = {idx:Centroid(color) for idx, color in enumerate(selected_colors)}
+    
 
     result = []
     for epoch in range(epochs):
