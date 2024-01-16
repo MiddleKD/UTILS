@@ -249,8 +249,8 @@ def sort_color_feature_mean_dist(colors):
 class Centroid:
     def __init__(self, color):
         self.data = color
-        self.neighbors = np.empty([0,3])
-    
+        self.neighbors = np.array([[127,127,127]])
+
     def update_color(self):
         if len(self.neighbors) == 0:
             self.data = np.array([-255,-255,-255])
@@ -264,8 +264,8 @@ class Centroid:
         self.neighbors = np.append(self.neighbors, color.reshape([1,-1]), axis=0)
     
     def clean_neighbor(self):
-        self.neighbors = np.empty([0,3])
-    
+        self.neighbors = self.data[None,:]
+        
     def get_data(self):
         return self.data.astype(np.int16).tolist(), len(self.neighbors)
     
@@ -294,7 +294,7 @@ def random_selected_pixel_with_mask(img, mask=None, select_n=4):
 
     return selected_colors
 
-def color_filter_with_mask(img, mask):
+def color_filter_with_mask(img, mask, pixel_skip):
     if mask.all() == None:
         mask = np.ones_like(img[:,:,0])
     if len(mask.shape) == 3:
@@ -304,20 +304,23 @@ def color_filter_with_mask(img, mask):
 
     img_flat = img.reshape([-1,3])
     mask_flat = mask.flatten()
+    img_flat = img_flat[np.where(mask_flat == 1)[0]]
+    random_row = np.random.choice(len(img_flat), size=len(img_flat)//pixel_skip, replace=True)
 
-    return img_flat[np.where(mask_flat == 1)[0]]
+    return img_flat[random_row,:]
 
-def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
+
+def color_extraction(img, mask=None, n_cluster=4, epochs = 3, pixel_skip=10, per_round=None):
     if mask is None:
         mask = np.ones_like(img) * 255
 
-    img = color_filter_with_mask(img, mask)
+    img = color_filter_with_mask(img, mask, pixel_skip)
+
     # selected_colors = random_selected_pixel_with_mask(img, mask, n_cluster)
     if len(img) == 0:
         print(np.unique(mask))
     selected_colors = img[np.random.choice(range(len(img)), n_cluster)]
     k_map = {idx:Centroid(color) for idx, color in enumerate(selected_colors)}
-    
 
     result = []
     for epoch in range(epochs):
@@ -340,9 +343,14 @@ def color_extraction(img, mask=None, n_cluster=4, epochs = 1):
     percentage = []
     for cur in result:
         color_result.append(cur[0])
-        percentage.append(cur[1])
+        if per_round is not None:
+            per = round(cur[1], per_round)
+        else:
+            per = cur[1]
+        percentage.append(per)
 
     return [color_result, percentage]
+
 
 
 def color_normalization(color_arr, scaling = True, type="rgb", only_scale=False):
