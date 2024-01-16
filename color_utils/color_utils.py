@@ -80,6 +80,45 @@ def visualize_rgb_colors(rgb_colors):
     # Show the plot
     plt.show()
 
+def make_pil_rgb_colors(rgb_colors):
+    rgb_colors = np.array(rgb_colors)
+
+    # Create a figure and axis for the plot
+    fig, ax = plt.subplots()
+
+    # Loop through the list of BGR colors and plot each one
+    for i, color in enumerate(rgb_colors):
+        # Convert BGR to RGB and normalize to [0, 1]
+        rgb_color = [x / 255.0 for x in color]
+
+        # Create a rectangle filled with the normalized RGB color
+        rect = plt.Rectangle((i, 0), 1, 1, facecolor=rgb_color)
+        
+        # Add the rectangle to the plot
+        ax.add_patch(rect)
+
+    # Set axis limits and aspect ratio
+    ax.set_xlim(0, len(rgb_colors))
+    ax.set_ylim(0, 1)
+    ax.set_aspect('equal')
+
+    # Remove axis labels and ticks
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    # Get the RGB image as a NumPy array
+    fig.canvas.draw()
+    rgb_image_np = np.array(fig.canvas.renderer.buffer_rgba())
+
+    # Close the plot to free up resources
+    plt.close()
+
+    # Convert the NumPy array to a PIL Image
+    pil_image = Image.fromarray(rgb_image_np)
+
+    # Return the PIL Image
+    return pil_image
+
 def visualize_bgr_colors(bgr_colors):
     # Create a figure and axis for the plot
     fig, ax = plt.subplots()
